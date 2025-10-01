@@ -4,7 +4,7 @@ const Redis = require('ioredis');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Redis client (placeholder - configure with environment variables in production)
+// Initialize Redis subscriber
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: process.env.REDIS_PORT || 6379,
@@ -33,44 +33,35 @@ app.listen(PORT, () => {
   console.log('ms-media-worker running...');
   console.log(`Health check available at http://localhost:${PORT}/health`);
 
-  // Start listening for Redis jobs (placeholder implementation)
-  startJobProcessor();
+  // Subscribe to Redis channel
+  subscribeToChannel();
 });
 
-// Placeholder function to simulate processing Redis jobs
-async function startJobProcessor() {
-  console.log('Listening for video compression jobs from Redis...');
+// Subscribe to media:compress channel
+async function subscribeToChannel() {
+  const CHANNEL = 'media:compress';
 
-  // Simulate job processing (replace with actual BullMQ or Redis queue implementation)
-  const QUEUE_NAME = 'video-compression-queue';
+  redis.subscribe(CHANNEL, (err, count) => {
+    if (err) {
+      console.error('Failed to subscribe to channel:', err.message);
+      return;
+    }
+    console.log(`Subscribed to ${count} channel(s): ${CHANNEL}`);
+  });
 
-  // Example: Listen for jobs using Redis BLPOP (blocking list pop)
-  // In production, use a proper queue library like BullMQ
-  async function processNextJob() {
-    try {
-      const result = await redis.blpop(QUEUE_NAME, 5); // 5 second timeout
-
-      if (result) {
-        const [queueName, jobData] = result;
-        const job = JSON.parse(jobData);
-
-        console.log(`Compressing video ${job.fileId}`);
+  redis.on('message', (channel, message) => {
+    if (channel === CHANNEL) {
+      try {
+        const data = JSON.parse(message);
+        console.log(`Compressing video ${data.fileId}...`);
 
         // Placeholder: Add actual video compression logic here
-        // await compressVideo(job.fileId);
-
-        console.log(`Completed compression for video ${job.fileId}`);
+        // await compressVideo(data.fileId);
+      } catch (error) {
+        console.error('Error processing message:', error.message);
       }
-    } catch (error) {
-      console.error('Error processing job:', error.message);
     }
-
-    // Continue processing next job
-    setImmediate(processNextJob);
-  }
-
-  // Start the job processing loop
-  processNextJob();
+  });
 }
 
 // Graceful shutdown

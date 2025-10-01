@@ -4,27 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`ms-media-worker` is a background worker service designed to process video compression jobs from a Redis queue. It runs on Railway using Docker and provides health monitoring capabilities.
+`ms-media-worker` is a background worker service that subscribes to Redis pub/sub channels for video compression jobs. It runs on Railway using Docker and provides health monitoring capabilities.
 
 ## Architecture
 
 - **Express HTTP Server**: Provides `/health` endpoint for monitoring
-- **Redis Queue Processing**: Uses ioredis with BLPOP to listen for jobs on `video-compression-queue`
-- **Job Processing**: Placeholder implementation for video compression (extend with FFmpeg or similar)
+- **Redis Pub/Sub**: Subscribes to `media:compress` channel using ioredis
+- **Message Processing**: Listens for video compression messages and logs processing (placeholder implementation)
 - **Graceful Shutdown**: Handles SIGTERM/SIGINT for clean Redis disconnection
 
 ### File Structure
 
 ```
 src/
-  index.js          - Main worker entry point with Express server and Redis job processor
+  index.js          - Main worker entry point with Express server and Redis pub/sub subscriber
 Dockerfile          - Node.js 18 container configuration for Railway
 package.json        - Dependencies: express, ioredis
 ```
 
-### Job Format
+### Message Format
 
-Jobs are JSON strings pushed to the `video-compression-queue` Redis list:
+Messages are JSON strings published to the `media:compress` Redis channel:
 ```json
 {"fileId": "video-123"}
 ```
@@ -47,9 +47,9 @@ docker run -p 3000:3000 -e REDIS_HOST=localhost ms-media-worker
 curl http://localhost:3000/health
 ```
 
-**Add test job to queue (via redis-cli):**
+**Publish test message (via redis-cli):**
 ```bash
-redis-cli RPUSH video-compression-queue '{"fileId":"test-video"}'
+redis-cli PUBLISH media:compress '{"fileId":"test-video"}'
 ```
 
 ## Environment Variables
@@ -61,7 +61,7 @@ redis-cli RPUSH video-compression-queue '{"fileId":"test-video"}'
 
 ## Implementation Notes
 
-- Current implementation uses basic Redis BLPOP for job polling
-- For production, consider migrating to BullMQ for better queue management, retries, and job status tracking
+- Uses Redis pub/sub for real-time message delivery
 - Video compression logic is placeholder - integrate FFmpeg or cloud transcoding service
+- For persistent job tracking with retries, consider migrating to BullMQ with Redis streams
 - Health check endpoint should be extended to verify Redis connectivity

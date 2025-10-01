@@ -1,12 +1,12 @@
 # ms-media-worker
 
-A worker service that listens for video compression jobs from a Redis queue, processes them, and provides health monitoring capabilities.
+A worker service that subscribes to Redis pub/sub channels for video compression jobs and provides health monitoring capabilities.
 
 ## Overview
 
 This service is designed to run as a background worker on Railway (or any Docker-compatible platform). It:
 
-- Listens for video compression jobs from a Redis queue
+- Subscribes to the `media:compress` Redis channel for video compression jobs
 - Processes video files (placeholder for actual compression logic)
 - Exposes a `/health` endpoint for health checks and monitoring
 
@@ -79,9 +79,9 @@ docker run -p 3000:3000 \
    - `REDIS_PASSWORD`
 3. Railway will automatically detect the Dockerfile and deploy
 
-## Job Processing
+## Message Processing
 
-The worker listens for jobs on the `video-compression-queue` Redis list. Jobs should be pushed as JSON strings with the following format:
+The worker subscribes to the `media:compress` Redis channel. Messages should be published as JSON strings with the following format:
 
 ```json
 {
@@ -89,28 +89,27 @@ The worker listens for jobs on the `video-compression-queue` Redis list. Jobs sh
 }
 ```
 
-Example of adding a job to the queue (using Redis CLI):
+Example of publishing a message (using Redis CLI):
 
 ```bash
-redis-cli RPUSH video-compression-queue '{"fileId":"video-123"}'
+redis-cli PUBLISH media:compress '{"fileId":"video-123"}'
 ```
 
 The worker will log:
 ```
-Compressing video video-123
-Completed compression for video video-123
+Compressing video video-123...
 ```
 
 ## Architecture
 
 - **Express** - HTTP server for health checks
-- **ioredis** - Redis client for job queue processing
-- **BLPOP** - Blocking list operation for efficient job polling (placeholder - consider using BullMQ for production)
+- **ioredis** - Redis client for pub/sub message handling
+- **Redis Pub/Sub** - Subscribes to `media:compress` channel for real-time job notifications
 
 ## Future Enhancements
 
-- Replace basic Redis BLPOP with a robust queue library (e.g., BullMQ)
 - Implement actual video compression logic (e.g., FFmpeg integration)
-- Add job retry logic and error handling
+- Add error handling and retry logic
 - Implement metrics and monitoring (e.g., Prometheus)
 - Add unit and integration tests
+- Consider using a job queue (BullMQ) for persistent job tracking if needed
