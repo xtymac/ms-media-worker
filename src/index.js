@@ -5,15 +5,23 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Redis subscriber
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-  retryStrategy: (times) => {
-    console.log(`Redis connection retry attempt ${times}`);
-    return Math.min(times * 50, 2000);
-  }
-});
+// Priority: REDIS_URL → (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD)
+const redis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, {
+      retryStrategy: (times) => {
+        console.log(`Redis connection retry attempt ${times}`);
+        return Math.min(times * 50, 2000);
+      }
+    })
+  : new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDIS_PORT || 6379,
+      password: process.env.REDIS_PASSWORD || undefined,
+      retryStrategy: (times) => {
+        console.log(`Redis connection retry attempt ${times}`);
+        return Math.min(times * 50, 2000);
+      }
+    });
 
 redis.on('error', (err) => {
   console.error('Redis connection error:', err.message);
