@@ -44,6 +44,49 @@ app.get('/health', (req, res) => {
   res.status(200).send('ok');
 });
 
+// Test endpoint to trigger a test job (for development/testing)
+app.post('/test-job', express.json(), async (req, res) => {
+  try {
+    const testJob = {
+      jobId: `test_${Date.now()}`,
+      videoId: req.body.videoId || `video_${Date.now()}`,
+      originalVideoKey: req.body.videoKey || 'uploads/test-video.mp4',
+      originalVideoUrl: req.body.videoUrl || 'https://example.com/test-video.mp4',
+      outputBucket: 'test-bucket',
+      callbackUrl: 'https://example.com/callback',
+      metadata: {
+        originalFileName: req.body.fileName || 'test-video.mp4',
+        fileSize: 1024000,
+        mimeType: 'video/mp4',
+        uploadedAt: new Date().toISOString(),
+      },
+      processingOptions: {
+        videoCompression: true,
+        audioRepair: true,
+        targetBitrate: '2M',
+        audioQuality: 'high',
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log('[TEST] Publishing test job:', testJob);
+    const subscribers = await redis.publish('media:compress', JSON.stringify(testJob));
+
+    res.json({
+      success: true,
+      message: 'Test job published',
+      jobId: testJob.jobId,
+      subscribers,
+    });
+  } catch (error) {
+    console.error('[TEST] Failed to publish test job:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log('=== ms-media-worker STARTUP ===');
