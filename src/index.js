@@ -5,36 +5,31 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Redis subscriber
-// Priority: REDIS_URL → (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD)
-let redisConfig;
-if (process.env.REDIS_URL) {
-  // Parse URL to log host:port (sanitized)
-  const url = new URL(process.env.REDIS_URL);
-  redisConfig = `${url.hostname}:${url.port || 6379}`;
-  console.log(`[CONFIG] Using REDIS_URL: ${redisConfig}`);
-} else {
-  const host = process.env.REDIS_HOST || 'localhost';
-  const port = process.env.REDIS_PORT || 6379;
-  redisConfig = `${host}:${port}`;
-  console.log(`[CONFIG] Using REDIS_HOST/PORT: ${redisConfig}`);
+// Use REDIS_PUBLIC_URL for external access (Railway proxy), fallback to REDIS_URL (private network)
+const REDIS_CONNECTION_URL = process.env.REDIS_PUBLIC_URL || process.env.REDIS_URL;
+
+if (!REDIS_CONNECTION_URL) {
+  console.error('[ERROR] No REDIS_PUBLIC_URL or REDIS_URL configured');
+  process.exit(1);
 }
 
-const redis = process.env.REDIS_URL
-  ? new Redis(process.env.REDIS_URL, {
-      retryStrategy: (times) => {
-        console.log(`Redis connection retry attempt ${times}`);
-        return Math.min(times * 50, 2000);
-      }
-    })
-  : new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: process.env.REDIS_PORT || 6379,
-      password: process.env.REDIS_PASSWORD || undefined,
-      retryStrategy: (times) => {
-        console.log(`Redis connection retry attempt ${times}`);
-        return Math.min(times * 50, 2000);
-      }
-    });
+let redisConfig;
+try {
+  const url = new URL(REDIS_CONNECTION_URL);
+  redisConfig = `${url.hostname}:${url.port || 6379}`;
+  console.log(`[CONFIG] Using Redis: ${redisConfig}`);
+  console.log(`[CONFIG] Source: ${process.env.REDIS_PUBLIC_URL ? 'REDIS_PUBLIC_URL' : 'REDIS_URL'}`);
+} catch (error) {
+  console.error('[ERROR] Invalid Redis URL:', error.message);
+  process.exit(1);
+}
+
+const redis = new Redis(REDIS_CONNECTION_URL, {
+  retryStrategy: (times) => {
+    console.log(`Redis connection retry attempt ${times}`);
+    return Math.min(times * 50, 2000);
+  }
+});
 
 redis.on('error', (err) => {
   console.error('Redis connection error:', err.message);
@@ -53,10 +48,6 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log('=== ms-media-worker STARTUP ===');
   console.log(`Health check available at http://localhost:${PORT}/health`);
-  console.log('[CONFIG] Configuration Summary:');
-  console.log(`  - Redis: ${redisConfig}`);
-  console.log(`  - REDIS_URL present: ${!!process.env.REDIS_URL}`);
-  console.log(`  - REDIS_PUBLIC_URL: ${process.env.REDIS_PUBLIC_URL || '(not set)'}`);
   console.log('===============================');
 
   // Subscribe to Redis channel
