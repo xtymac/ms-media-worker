@@ -71,10 +71,16 @@ async function subscribeToChannel() {
     if (channel === CHANNEL) {
       try {
         const data = JSON.parse(message);
-        console.log(`Compressing video ${data.fileId}...`);
+        console.log('[JOB RECEIVED] Processing compression job:', {
+          jobId: data.jobId,
+          videoId: data.videoId,
+          videoKey: data.originalVideoKey,
+          compression: data.processingOptions?.videoCompression,
+          audioRepair: data.processingOptions?.audioRepair
+        });
 
         // Placeholder: Add actual video compression logic here
-        // await compressVideo(data.fileId);
+        // await compressVideo(data.videoId, data.originalVideoUrl, data.processingOptions);
       } catch (error) {
         console.error('Error processing message:', error.message);
       }
