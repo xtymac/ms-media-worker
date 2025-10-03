@@ -6,6 +6,19 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize Redis subscriber
 // Priority: REDIS_URL → (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD)
+let redisConfig;
+if (process.env.REDIS_URL) {
+  // Parse URL to log host:port (sanitized)
+  const url = new URL(process.env.REDIS_URL);
+  redisConfig = `${url.hostname}:${url.port || 6379}`;
+  console.log(`[CONFIG] Using REDIS_URL: ${redisConfig}`);
+} else {
+  const host = process.env.REDIS_HOST || 'localhost';
+  const port = process.env.REDIS_PORT || 6379;
+  redisConfig = `${host}:${port}`;
+  console.log(`[CONFIG] Using REDIS_HOST/PORT: ${redisConfig}`);
+}
+
 const redis = process.env.REDIS_URL
   ? new Redis(process.env.REDIS_URL, {
       retryStrategy: (times) => {
@@ -38,8 +51,13 @@ app.get('/health', (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-  console.log('ms-media-worker running...');
+  console.log('=== ms-media-worker STARTUP ===');
   console.log(`Health check available at http://localhost:${PORT}/health`);
+  console.log('[CONFIG] Configuration Summary:');
+  console.log(`  - Redis: ${redisConfig}`);
+  console.log(`  - REDIS_URL present: ${!!process.env.REDIS_URL}`);
+  console.log(`  - REDIS_PUBLIC_URL: ${process.env.REDIS_PUBLIC_URL || '(not set)'}`);
+  console.log('===============================');
 
   // Subscribe to Redis channel
   subscribeToChannel();
@@ -47,7 +65,8 @@ app.listen(PORT, () => {
 
 // Subscribe to media:compress channel
 async function subscribeToChannel() {
-  const CHANNEL = 'media:compress';
+  const CHANNEL = process.env.QUEUE_CHANNEL || 'media:compress';
+  console.log(`[CONFIG] Using QUEUE_CHANNEL: ${CHANNEL}`);
 
   redis.subscribe(CHANNEL, (err, count) => {
     if (err) {
