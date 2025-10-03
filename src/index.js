@@ -56,7 +56,7 @@ app.listen(PORT, () => {
 
 // Subscribe to media:compress channel
 async function subscribeToChannel() {
-  const CHANNEL = process.env.QUEUE_CHANNEL || 'media:compress';
+  const CHANNEL = (process.env.QUEUE_CHANNEL || 'media:compress').trim();
   console.log(`[CONFIG] Using QUEUE_CHANNEL: ${CHANNEL}`);
 
   redis.subscribe(CHANNEL, (err, count) => {
