@@ -13,12 +13,22 @@ if (!REDIS_CONNECTION_URL) {
   process.exit(1);
 }
 
+console.log('[DEBUG] REDIS_PUBLIC_URL:', process.env.REDIS_PUBLIC_URL ? 'SET' : 'NOT SET');
+console.log('[DEBUG] REDIS_URL:', process.env.REDIS_URL ? 'SET' : 'NOT SET');
+console.log('[DEBUG] Full connection URL:', REDIS_CONNECTION_URL);
+
 let redisConfig;
 try {
   const url = new URL(REDIS_CONNECTION_URL);
   redisConfig = `${url.hostname}:${url.port || 6379}`;
+  console.log(`[CONFIG] Protocol: ${url.protocol}`);
   console.log(`[CONFIG] Using Redis: ${redisConfig}`);
   console.log(`[CONFIG] Source: ${process.env.REDIS_PUBLIC_URL ? 'REDIS_PUBLIC_URL' : 'REDIS_URL'}`);
+
+  if (!url.protocol.startsWith('redis')) {
+    console.error('[ERROR] Invalid protocol - must be redis:// or rediss://, got:', url.protocol);
+    process.exit(1);
+  }
 } catch (error) {
   console.error('[ERROR] Invalid Redis URL:', error.message);
   process.exit(1);
