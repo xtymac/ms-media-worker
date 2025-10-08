@@ -44,6 +44,10 @@ app.get('/health', (req, res) => {
   res.status(200).send('ok');
 });
 
+app.get('/api/health', (req, res) => {
+  res.status(200).send('ok');
+});
+
 // Test endpoint to trigger a test job (for development/testing)
 app.post('/test-job', express.json(), async (req, res) => {
   try {
